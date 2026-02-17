@@ -1,0 +1,64 @@
+<!-- step 1  -->
+create extension if not exists vector;
+
+<!-- step 2  -->
+create table if not exists repositories (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_at timestamp default now()
+);
+
+create table if not exists chunks (
+  id uuid primary key default gen_random_uuid(),
+  repository_id uuid references repositories(id) on delete cascade,
+  file_path text not null,
+  start_line int not null,
+  end_line int not null,
+  content text not null,
+  embedding vector(1536) not null
+);
+
+create table if not exists qna_history (
+  id uuid primary key default gen_random_uuid(),
+  repository_id uuid references repositories(id) on delete cascade,
+  question text not null,
+  answer text not null,
+  created_at timestamp default now()
+);
+
+<!-- step 3  -->
+
+create or replace function match_chunks(
+  query_embedding vector(1536),
+  match_count int,
+  repo_id uuid
+)
+returns table (
+  id uuid,
+  file_path text,
+  start_line int,
+  end_line int,
+  content text,
+  similarity float
+)
+language sql
+as $$
+  select
+    id,
+    file_path,
+    start_line,
+    end_line,
+    content,
+    1 - (embedding <=> query_embedding) as similarity
+  from chunks
+  where repository_id = repo_id
+  order by embedding <=> query_embedding
+  limit match_count;
+$$;
+
+// step 4
+
+create index if not exists chunks_embedding_idx
+on chunks
+using ivfflat (embedding vector_cosine_ops)
+with (lists = 100);
