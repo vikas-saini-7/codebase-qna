@@ -14,13 +14,6 @@ export default function Home() {
           </p>
         </div>
         <UploadForm />
-        <div className="text-xs text-muted-foreground text-center max-w-md mx-auto mt-4">
-          <span>
-            <strong>How it works:</strong> Upload a ZIP file or enter a GitHub
-            repo URL, then index your repository to start asking questions about
-            your codebase.
-          </span>
-        </div>
       </div>
     </main>
   );
