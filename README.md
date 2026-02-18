@@ -28,11 +28,11 @@ Codebase QNA is a web app that lets you upload a codebase (zip or GitHub URL) an
 
 ```mermaid
 flowchart TD
-	A[User] -->|Upload ZIP / GitHub URL| B[Ingestion Pipeline]
-	B -->|Parse, Chunk, Embed (Xenova/all-MiniLM-L6-v2, 384-dim)| C[Supabase (pgvector)]
-	A -->|Ask Question| D[Q&A Pipeline]
-	D -->|Embed, Retrieve, LLM (OpenRouter)| C
-	D -->|Answer + References| A
+	A[User] -->|Upload ZIP or GitHub URL| B[Ingestion Pipeline]
+	B -->|Parse, Chunk, Embed| C[Supabase pgvector]
+	A -->|Ask Question| D[QnA Pipeline]
+	D -->|Embed, Retrieve, LLM| C
+	D -->|Answer and References| A
 ```
 
 ---
@@ -53,10 +53,10 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-	U[User] --> Z[Upload ZIP / GitHub URL]
+	U[User] --> Z[Upload ZIP or GitHub URL]
 	Z --> P[Parse Files]
-	P --> S[Split into Chunks]
-	S --> E[Generate Embeddings (Xenova)]
+	P --> S[Split Chunks]
+	S --> E[Generate Embeddings]
 	E --> DB[Store in Supabase]
 ```
 
@@ -80,12 +80,12 @@ flowchart LR
 ```mermaid
 flowchart LR
 	U[User] --> Q[Ask Question]
-	Q --> EQ[Embed Question (Xenova)]
+	Q --> EQ[Embed Question]
 	EQ --> VS[Vector Search]
 	VS --> RC[Retrieve Chunks]
-	RC --> LLM[LLM Generates Answer (OpenRouter)]
-	LLM --> UI[Show Answer + References]
-	UI --> H[Save Q&A History]
+	RC --> LLM[LLM Answer]
+	LLM --> UI[Show Answer]
+	UI --> H[Save QnA History]
 ```
 
 ---
