@@ -13,6 +13,7 @@ export interface Reference {
 }
 
 export interface QnA {
+  id?: string;
   question: string;
   answer: string;
   references: Reference[];

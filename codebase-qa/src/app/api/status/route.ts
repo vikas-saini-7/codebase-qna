@@ -56,7 +56,7 @@ async function checkDatabase() {
 
 async function checkVector() {
   try {
-    const testVector = new Array(1536).fill(0);
+    const testVector = new Array(384).fill(0);
     const { error } = await supabase.rpc("match_chunks", {
       query_embedding: testVector,
       match_count: 1,
@@ -75,15 +75,15 @@ async function checkVector() {
 
 async function checkLLM() {
   try {
-    // const response = await fetch("https://api.openai.com/v1/models", {
-    //   headers: {
-    //     Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    //   },
-    // });
-    // if (!response.ok) {
-    //   const text = await response.text();
-    //   throw new Error(text || "LLM API error");
-    // }
+    const res = await fetch("https://openrouter.ai/api/v1/models", {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "LLM API error");
+    }
     return { status: "healthy", error: null } as const;
   } catch (err) {
     console.error("[Status API] LLM check error:", err);

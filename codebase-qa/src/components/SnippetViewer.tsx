@@ -17,7 +17,7 @@ export function SnippetViewer({ snippet }: SnippetViewerProps) {
           (lines {snippet.startLine}–{snippet.endLine})
         </span>
       </div>
-      <pre className="bg-[#161b22] rounded-md p-3 text-sm font-mono overflow-x-auto text-[#c9d1d9]">
+      <pre className="bg-[#191b1f] rounded-md p-3 text-sm font-mono overflow-x-auto text-[#c9d1d9]">
         {codeLines.map((line, idx) => {
           const lineNumber = snippet.startLine + idx;
           const isHighlighted =
@@ -27,7 +27,7 @@ export function SnippetViewer({ snippet }: SnippetViewerProps) {
               key={idx}
               className={
                 "flex items-start gap-3" +
-                (isHighlighted ? " bg-[#22262e]" : "")
+                (isHighlighted ? " " : "")
               }
             >
               <span className="select-none text-[#8b949e] w-8 text-right pr-2">

@@ -1,9 +1,25 @@
 // fileParser.ts
-// Extracts and filters valid files from a directory (ZIP or GitHub extraction)
-import * as fs from "fs";
-import * as path from "path";
+// Robust file extraction & filtering for code ingestion
 
-const IGNORED_DIRS = [
+import fs from "fs";
+import path from "path";
+
+const MAX_FILE_SIZE = 500 * 1024; // 500KB
+const MAX_DEPTH = 20; // prevent infinite recursion
+
+const IGNORED_FILES = new Set([
+  "package-lock.json",
+  "yarn.lock",
+  "pnpm-lock.yaml",
+  "bun.lockb",
+  "poetry.lock",
+  "Pipfile.lock",
+  "Cargo.lock",
+  "composer.lock",
+  "Gemfile.lock",
+]);
+
+const IGNORED_DIRS = new Set([
   "node_modules",
   ".git",
   "dist",
@@ -15,14 +31,14 @@ const IGNORED_DIRS = [
   "bin",
   "obj",
   "venv",
-  ".env",
-  ".idea",
-  ".vscode",
   "__pycache__",
   ".mypy_cache",
   ".gradle",
-];
-const IGNORED_EXTS = [
+  ".idea",
+  ".vscode",
+]);
+
+const IGNORED_EXTS = new Set([
   ".png",
   ".jpg",
   ".jpeg",
@@ -38,61 +54,119 @@ const IGNORED_EXTS = [
   ".exe",
   ".dll",
   ".so",
-];
-const ALLOWED_EXTS = [
-  ".ts",
-  ".tsx",
-  ".js",
-  ".jsx",
-  ".py",
-  ".java",
-  ".go",
-  ".rb",
-  ".cpp",
-  ".c",
-  ".md",
-  ".json",
-  ".yml",
-  ".waml",
-  ".sql",
-  ".sh",
-  ".env.example",
-];
+  ".class",
+  ".jar",
+  ".pyc",
+  ".o",
+  ".a",
+]);
 
-function isHidden(file: string) {
-  return path.basename(file).startsWith(".");
+function isHidden(name: string) {
+  return name.startsWith(".");
 }
 
-function isBinary(filePath: string) {
-  // Simple binary check: read first 8000 bytes
-  const buf = fs.readFileSync(filePath, { encoding: null });
-  for (let i = 0; i < Math.min(buf.length, 8000); i++) {
-    if (buf[i] === 0) return true;
+function isIgnoredDir(dirName: string) {
+  return IGNORED_DIRS.has(dirName);
+}
+
+function isIgnoredFile(fileName: string) {
+  return IGNORED_FILES.has(fileName);
+}
+
+function hasBinaryExtension(filePath: string) {
+  const ext = path.extname(filePath).toLowerCase();
+  return IGNORED_EXTS.has(ext);
+}
+
+function isTooLarge(filePath: string) {
+  try {
+    const stats = fs.statSync(filePath);
+    return stats.size > MAX_FILE_SIZE;
+  } catch {
+    return true;
   }
-  return false;
 }
 
+/**
+ * Detect if file is binary without reading full file.
+ * Reads first 4KB only.
+ */
+function isBinary(filePath: string): boolean {
+  try {
+    const fd = fs.openSync(filePath, "r");
+    const buffer = Buffer.alloc(4096);
+    const bytesRead = fs.readSync(fd, buffer, 0, 4096, 0);
+    fs.closeSync(fd);
+
+    for (let i = 0; i < bytesRead; i++) {
+      if (buffer[i] === 0) {
+        return true; // Null byte found
+      }
+    }
+
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+export function isValidFile(filePath: string): boolean {
+  const fileName = path.basename(filePath);
+
+  if (isHidden(fileName)) return false;
+  if (isIgnoredFile(fileName)) return false;
+  if (hasBinaryExtension(filePath)) return false;
+  if (isTooLarge(filePath)) return false;
+  if (isBinary(filePath)) return false;
+
+  return true;
+}
+
+/**
+ * Recursively walk directory safely.
+ * Protects against:
+ * - Symlink loops
+ * - Permission errors
+ * - Deep recursion
+ */
 export function getValidFiles(rootDir: string): string[] {
   const validFiles: string[] = [];
-  function walk(dir: string) {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const visited = new Set<string>();
+
+  function walk(dir: string, depth: number) {
+    if (depth > MAX_DEPTH) return;
+
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return; // skip unreadable dirs
+    }
+
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
+
+      // Avoid infinite loops from symlinks
+      try {
+        const realPath = fs.realpathSync(fullPath);
+        if (visited.has(realPath)) continue;
+        visited.add(realPath);
+      } catch {
+        continue;
+      }
+
       if (entry.isDirectory()) {
-        if (IGNORED_DIRS.includes(entry.name) || isHidden(entry.name)) continue;
-        walk(fullPath);
-      } else {
-        const ext = path.extname(entry.name);
-        if (!ALLOWED_EXTS.includes(ext)) continue;
-        if (IGNORED_EXTS.includes(ext)) continue;
-        if (isHidden(entry.name)) continue;
-        const stats = fs.statSync(fullPath);
-        if (stats.size > 1024 * 1024) continue; // >1MB
-        if (isBinary(fullPath)) continue;
-        validFiles.push(fullPath);
+        if (isIgnoredDir(entry.name) || isHidden(entry.name)) continue;
+        walk(fullPath, depth + 1);
+      } else if (entry.isFile()) {
+        if (isValidFile(fullPath)) {
+          validFiles.push(fullPath);
+        }
       }
     }
   }
-  walk(rootDir);
+
+  walk(rootDir, 0);
+
   return validFiles;
 }

@@ -6,7 +6,7 @@ Build a question-answering pipeline that:
 
 1.  Accepts a natural language question
 2.  Retrieves relevant code chunks using vector similarity
-3.  Uses an LLM to generate a structured answer
+3.  Uses an LLM to generate a structured answer use openRouter any good llm model (free)
 4.  Returns:
     - Explanation
     - File paths

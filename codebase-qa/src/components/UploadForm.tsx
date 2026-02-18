@@ -25,13 +25,20 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
   const [indexedRepos, setIndexedRepos] = useState<
     { id: string; name: string }[]
   >([]);
+  const [reposLoading, setReposLoading] = useState(true);
   // Load indexed repos from localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("indexedRepos");
-      if (stored) {
-        setIndexedRepos(JSON.parse(stored));
-      }
+      setReposLoading(true);
+      setTimeout(() => {
+        const stored = localStorage.getItem("indexedRepos");
+        if (stored) {
+          setIndexedRepos(JSON.parse(stored));
+        }
+        setReposLoading(false);
+      }, 400); // short delay for skeleton effect
+    } else {
+      setReposLoading(false);
     }
   }, []);
 
@@ -44,6 +51,35 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
     setIndexedRepos(newRepos);
     if (typeof window !== "undefined") {
       localStorage.setItem("indexedRepos", JSON.stringify(newRepos));
+    }
+  }
+
+  // Helper to delete a repo from backend and localStorage
+  async function handleDeleteRepo(id: string) {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this repository and all its data?",
+      )
+    )
+      return;
+    try {
+      const res = await fetch("/api/repository", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repositoryId: id }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Failed to delete repository.");
+        return;
+      }
+      const newRepos = indexedRepos.filter((r) => r.id !== id);
+      setIndexedRepos(newRepos);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("indexedRepos", JSON.stringify(newRepos));
+      }
+    } catch (e) {
+      setError("Failed to delete repository.");
     }
   }
   const router = useRouter();
@@ -128,10 +164,10 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
   return (
     <>
       {showSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card border border-border rounded-lg p-8 shadow-xl w-full max-w-sm text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-[#232326] border border-[#333] rounded-xl p-8 shadow-xl w-full max-w-sm text-center text-[#e6eaf1]">
             <div className="text-2xl font-semibold mb-2">Hurray! 🎉</div>
-            <div className="text-muted-foreground mb-6">
+            <div className="text-[#8b949e] mb-6">
               Repo indexed for question and answers.
               <br />
               You can now go to ask questions.
@@ -153,15 +189,15 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
       )}
 
       {/* Single form at the top */}
-      <div className="w-full max-w-md mx-auto bg-card border border-border rounded-lg p-8 shadow-lg mb-6">
+      <div className="w-full max-w-md mx-auto bg-gray-500/10 border rounded-xl p-8 border-0 shadow-lg mb-6 text-[#e6eaf1]">
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-2 mb-6">
+          <TabsList className="w-full grid grid-cols-2 mb-6 bg-[#1A1A1D] border-0 rounded-lg">
             <TabsTrigger value="zip">Upload ZIP</TabsTrigger>
             <TabsTrigger value="github">GitHub URL</TabsTrigger>
           </TabsList>
           <TabsContent value="zip">
             <form onSubmit={handleIndex} className="space-y-4">
-              <label className="block text-muted-foreground text-sm font-medium mb-1">
+              <label className="block text-[#8b949e] text-sm font-medium mb-1">
                 Select a ZIP file
               </label>
               <Input
@@ -172,12 +208,12 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
                 className="file:bg-accent file:text-accent-foreground"
               />
               {zipFile && (
-                <div className="text-xs text-muted-foreground truncate">
+                <div className="text-xs text-[#8b949e] truncate">
                   {zipFile.name}
                 </div>
               )}
               {error && (
-                <div className="text-destructive text-xs mt-1">{error}</div>
+                <div className="text-red-400 text-xs mt-1">{error}</div>
               )}
               <Button type="submit" className="w-full mt-2" disabled={loading}>
                 {loading ? (
@@ -196,7 +232,7 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
           </TabsContent>
           <TabsContent value="github">
             <form onSubmit={handleIndex} className="space-y-4">
-              <label className="block text-muted-foreground text-sm font-medium mb-1">
+              <label className="block text-[#8b949e] text-sm font-medium mb-1">
                 Enter a public GitHub repository URL
               </label>
               <Input
@@ -206,9 +242,10 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
                 onChange={handleRepoChange}
                 disabled={loading}
                 autoFocus
+                className="bg-[#1A1A1D] border-0"
               />
               {error && (
-                <div className="text-destructive text-xs mt-1">{error}</div>
+                <div className="text-red-400 text-xs mt-1">{error}</div>
               )}
               <Button type="submit" className="w-full mt-2" disabled={loading}>
                 {loading ? (
@@ -229,38 +266,60 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
       </div>
 
       {/* Improved card-style list of indexed repos */}
-      {indexedRepos.length > 0 && (
-        <div className="w-full max-w-xl mx-auto mb-6 bg-card border border-border rounded-lg p-4 shadow">
-          <div className="font-semibold mb-3 text-primary text-base">
+      {reposLoading ? (
+        <div className="w-full max-w-3xl mx-auto mb-6">
+          <div className="h-5 w-40 mb-3 bg-gray-500/10 rounded animate-pulse" />
+          <ul className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <li
+                key={i}
+                className="h-9 bg-gray-500/10 rounded animate-pulse"
+              />
+            ))}
+          </ul>
+        </div>
+      ) : indexedRepos.length > 0 ? (
+        <div className="w-full max-w-3xl mx-auto mb-6 bg-gray-500/10 rounded-xl p-4 shadow text-[#e6eaf1]">
+          <div className="font-semibold mb-3 text-[#e6eaf1] text-base">
             Your Indexed Repositories
           </div>
           <ul className="space-y-2">
             {indexedRepos.map((repo) => (
               <li
                 key={repo.id}
-                className="flex items-center justify-between gap-2 bg-muted rounded px-3 py-2 border border-border hover:shadow-sm transition"
+                className="flex items-center justify-between gap-2 bg-gray-500/10 rounded-lg px-3 py-2  hover:shadow-sm transition"
               >
-                <span className="truncate text-sm font-medium text-foreground">
+                <span className="truncate text-sm font-medium text-[#e6eaf1]">
                   {repo.name}
                 </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="px-3 py-1"
-                  onClick={() =>
-                    router.push(`/ask?repo_id=${encodeURIComponent(repo.id)}`)
-                  }
-                >
-                  Ask Questions
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="px-3 py-1"
+                    onClick={() =>
+                      router.push(`/ask?repo_id=${encodeURIComponent(repo.id)}`)
+                    }
+                  >
+                    Ask Questions
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="px-3 py-1"
+                    onClick={() => handleDeleteRepo(repo.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
         </div>
-      )}
+      ) : null}
 
       {/* How it works explanation */}
-      <div className="w-full max-w-md mx-auto text-xs text-muted-foreground text-center px-2 pb-2">
+      <div className="w-full max-w-md mx-auto text-xs text-[#8b949e] text-center px-2 pb-2">
         <span>
           <strong>How it works:</strong> Upload a ZIP file or enter a GitHub
           repo URL, then index your repository to start asking questions about
