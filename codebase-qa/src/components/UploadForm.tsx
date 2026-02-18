@@ -230,7 +230,7 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
 
       {/* Improved card-style list of indexed repos */}
       {indexedRepos.length > 0 && (
-        <div className="w-full max-w-md mx-auto mb-6 bg-card border border-border rounded-lg p-4 shadow">
+        <div className="w-full max-w-xl mx-auto mb-6 bg-card border border-border rounded-lg p-4 shadow">
           <div className="font-semibold mb-3 text-primary text-base">
             Your Indexed Repositories
           </div>
