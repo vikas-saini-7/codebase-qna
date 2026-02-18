@@ -46,7 +46,6 @@ import { SnippetViewer } from "@/components/SnippetViewer";
 import type { QnA, Snippet, Reference } from "@/types/qna";
 import { useSearchParams } from "next/navigation";
 
-
 export default function DashboardPageWrapper() {
   return (
     <React.Suspense fallback={<div />}>
