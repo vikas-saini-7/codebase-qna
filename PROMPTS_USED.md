@@ -45,10 +45,3 @@ I divided the project into two main phases:
 - "What is the best way to link to file paths and line numbers in a code viewer?"
 
 ---
-
-Add your actual prompts below as you use them:
-
--
--
--
--
