@@ -62,3 +62,51 @@ create index if not exists chunks_embedding_idx
 on chunks
 using ivfflat (embedding vector_cosine_ops)
 with (lists = 100);
+
+
+// updated 
+
+ // step 1
+
+ alter table chunks
+  alter column embedding type vector(384);
+
+
+ // step 2
+create or replace function match_chunks(
+  query_embedding vector(384),
+  match_count int,
+  repo_id uuid
+)
+returns table (
+  id uuid,
+  file_path text,
+  start_line int,
+  end_line int,
+  content text,
+  similarity float
+)
+language sql
+as $$
+  select
+    id,
+    file_path,
+    start_line,
+    end_line,
+    content,
+    1 - (embedding <=> query_embedding) as similarity
+  from chunks
+  where repository_id = repo_id
+  order by embedding <=> query_embedding
+  limit match_count;
+$$;
+
+
+// step 3
+
+drop index if exists chunks_embedding_idx;
+
+create index chunks_embedding_idx
+on chunks
+using ivfflat (embedding vector_cosine_ops)
+with (lists = 100);

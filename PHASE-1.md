@@ -177,6 +177,8 @@ Call:
 
 generateEmbedding(chunk.content)
 
+use Xenova/transformers.js
+
 Requirements: - Returns number\[\] - Length = 1536 - Limit concurrency
 (5--10 at a time)
 

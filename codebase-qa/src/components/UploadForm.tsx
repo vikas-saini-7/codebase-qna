@@ -29,7 +29,7 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
     setError(null);
   };
 
-  const handleIndex = (e: React.FormEvent) => {
+  const handleIndex = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (tab === "zip" && !zipFile) {
@@ -42,10 +42,45 @@ export function UploadForm({ onIndexStart, onIndexEnd }: UploadFormProps) {
     }
     setLoading(true);
     onIndexStart?.();
-    setTimeout(() => {
+    try {
+      let response;
+      if (tab === "zip") {
+        const formData = new FormData();
+        formData.append("file", zipFile!);
+        response = await fetch("/api/index", {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        response = await fetch("/api/index", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ githubUrl: repoUrl.trim() }),
+        });
+      }
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Indexing failed. Please try again.");
+      } else {
+        // Optionally: show a success message or trigger a callback
+        setZipFile(null);
+        setRepoUrl("");
+      }
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "message" in err &&
+        typeof (err as { message?: unknown }).message === "string"
+      ) {
+        setError((err as { message: string }).message);
+      } else {
+        setError("Unexpected error. Please try again.");
+      }
+    } finally {
       setLoading(false);
       onIndexEnd?.();
-    }, 1800); // Simulate loading
+    }
   };
 
   return (
