@@ -46,7 +46,16 @@ import { SnippetViewer } from "@/components/SnippetViewer";
 import type { QnA, Snippet, Reference } from "@/types/qna";
 import { useSearchParams } from "next/navigation";
 
-export default function DashboardPage() {
+
+export default function DashboardPageWrapper() {
+  return (
+    <React.Suspense fallback={<div />}>
+      <DashboardPage />
+    </React.Suspense>
+  );
+}
+
+function DashboardPage() {
   const searchParams = useSearchParams();
   const repoIdFromParams = searchParams?.get("repo_id");
   const repositoryId = repoIdFromParams;
